@@ -1,14 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using GreenMonkeysMVC.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using GreenMonkeysMVC.Models.ViewModels;
+using GreenMonkeysMVC.Data;
 
 namespace GreenMonkeysMVC.Controllers
 {
@@ -23,149 +20,105 @@ namespace GreenMonkeysMVC.Controllers
         {
             get
             {
-                return new SqlConnection(_config.GetConnectionString("DefaultConnection"));
+                string _connectionString = "Server=localhost\\SQLEXPRESS;Database=BangazonWorkforce;Trusted_Connection=True;";
+                return new SqlConnection(_connectionString);
             }
         }
-        // GET: Departments
+
+        // GET: Department
         public ActionResult Index()
         {
-            using (SqlConnection conn = Connection)
-            {
-                conn.Open();
-                using (SqlCommand cmd = conn.CreateCommand())
-                {
-                    cmd.CommandText = @"SELECT d.[Name] AS DepartmentName, COUNT(e.Id) AS EmployeeCount, d.Budget, d.Id 
-                                        FROM Department d LEFT JOIN Employee e ON d.Id = e.DepartmentId
-                                        GROUP BY d.[Name], d.Budget, d. Id";
-                    var reader = cmd.ExecuteReader();
+            DepartmentRepository departmentRepo = new DepartmentRepository();
+            List<Department> allDepartments = departmentRepo.GetAllDepartments();
 
-                    var departments = new List<Department>();
-
-                    while (reader.Read())
-                    {
-                        departments.Add(new Department
-                        {
-                            Id = reader.GetInt32(reader.GetOrdinal("Id")),
-                            Name = reader.GetString(reader.GetOrdinal("DepartmentName")),
-                            Budget = reader.GetInt32(reader.GetOrdinal("Budget")),
-                            EmployeeCount = reader.GetInt32(reader.GetOrdinal("EmployeeCount"))
-                        });
-                    }
-                    reader.Close();
-                    return View(departments);
-                }
-            }
+            return View(allDepartments);
         }
 
-        // GET: Cohorts/Details/5
-
+        // GET: Departments/Details
         public ActionResult Details(int id)
         {
-            using (SqlConnection conn = Connection)
-            {
-                conn.Open();
-                using (SqlCommand cmd = conn.CreateCommand())
-                {
-                    cmd.CommandText = @"SELECT d.Id AS DepartmentId, d.[Name] AS Department, d.Budget AS Budget,
-                                        e.Id AS EmployeeId, 
-                                        e.FirstName + ' ' + e.LastName AS Employee FROM Department d LEFT JOIN Employee e
-                                        ON d.Id = e.DepartmentId
-                                        WHERE D.Id = @id";
+            DepartmentRepository departmentRepo = new DepartmentRepository();
+            Department department = departmentRepo.GetDepartmentDetails(id);
 
-                    cmd.Parameters.Add(new SqlParameter("@id", id));
-
-                    var reader = cmd.ExecuteReader();
-                    Department department = null;
-                    var employees = new List<Employee>();
-
-                    while (reader.Read())
-                    {
-                        if (department == null)
-                        {
-                            department = new Department
-                            {
-                                Id = reader.GetInt32(reader.GetOrdinal("DepartmentId")),
-                                Name = reader.GetString(reader.GetOrdinal("Department")),
-                                Budget = reader.GetInt32(reader.GetOrdinal("Budget")),
-                                Employees = employees
-                            };
-                        }
-
-                        if (!reader.IsDBNull(reader.GetOrdinal("EmployeeId")))
-                        {
-                            //employees.Add(
-                            var emp = new Employee
-                            {
-                                Id = reader.GetInt32(reader.GetOrdinal("EmployeeId")),
-                                FirstName = reader.GetString(reader.GetOrdinal("Employee")),
-                            };
-                            department.Employees.Add(emp);
-
-                        
-                        }
-
-                    }
-
-                    reader.Close();
-                    return View(department);
-                }
-            }
+            return View(department);
         }
 
         // GET: Departments/Create
-
         public ActionResult Create()
         {
             return View();
         }
 
 
-        // POST: Cohort/Create
+        // POST: Departments/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
         public ActionResult Create(Department department)
         {
             {
-                try
-                {
-                    using (SqlConnection conn = Connection)
-                    {
-                        conn.Open();
-                        using (SqlCommand cmd = conn.CreateCommand())
-                        {
-                            cmd.CommandText = @"INSERT INTO Department (Name, Budget)
-                                            VALUES (@Name, @Budget)";
-
-                            cmd.Parameters.Add(new SqlParameter("@Name", department.Name));
-                            cmd.Parameters.Add(new SqlParameter("@Budget", department.Budget));
-
-                            cmd.ExecuteNonQuery();
-                        }
-                    }
-
-                    return RedirectToAction(nameof(Index));
-                }
-                catch (Exception ex)
-                {
-                    return View();
-                }
+                DepartmentRepository departmentRepo = new DepartmentRepository();
+                departmentRepo.AddDepartment(department);
+                return RedirectToAction(nameof(Index));
             }
         }
 
-        // GET: Departments/Edit/5
+
+
+
+
+
+
+
+        //// GET: Departments
+        //public ActionResult Index()
+        //{
+        //    using (SqlConnection conn = Connection)
+        //    {
+        //        conn.Open();
+        //        using (SqlCommand cmd = conn.CreateCommand())
+        //        {
+        //            cmd.CommandText = @"SELECT d.[Name] AS DepartmentName, COUNT(e.Id) AS EmployeeCount, d.Budget, d.Id 
+        //                                FROM Department d LEFT JOIN Employee e ON d.Id = e.DepartmentId
+        //                                GROUP BY d.[Name], d.Budget, d. Id";
+        //            var reader = cmd.ExecuteReader();
+
+        //            var departments = new List<Department>();
+
+        //            while (reader.Read())
+        //            {
+        //                departments.Add(new Department
+        //                {
+        //                    Id = reader.GetInt32(reader.GetOrdinal("Id")),
+        //                    Name = reader.GetString(reader.GetOrdinal("DepartmentName")),
+        //                    Budget = reader.GetInt32(reader.GetOrdinal("Budget")),
+        //                    EmployeeCount = reader.GetInt32(reader.GetOrdinal("EmployeeCount"))
+        //                });
+        //            }
+        //            reader.Close();
+        //            return View(departments);
+        //        }
+        //    }
+        //}
+
+
+
+        // GET: Departments/Edit
         public ActionResult Edit(int id)
         {
-            return View();
+            DepartmentRepository departmentRepo = new DepartmentRepository();
+            var department = departmentRepo.GetDepartmentById(id);
+            return View(department);
         }
 
-        // POST: Departments/Edit/5
+        // POST: Departments/Edit
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Edit(int id, IFormCollection collection)
+        public ActionResult Edit(int id, Department department)
         {
             try
             {
-                // TODO: Add update logic here
+                DepartmentRepository departmentRepo = new DepartmentRepository();
+                departmentRepo.UpdateDepartment(id, department);
 
                 return RedirectToAction(nameof(Index));
             }
@@ -178,33 +131,28 @@ namespace GreenMonkeysMVC.Controllers
         // GET: Departments/Delete/5
         public ActionResult Delete(int id)
         {
-            return View();
+            DepartmentRepository departmentRepo = new DepartmentRepository();
+            var department = departmentRepo.GetDepartmentById(id);
+            return View(department);
         }
 
-        // POST: Departments/Delete/5
+        // POST: Departments/Delete
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Delete(int id, IFormCollection collection)
+        public ActionResult Delete(Department department)
         {
-            try
-            {
-                // TODO: Add delete logic here
-
-                return RedirectToAction(nameof(Index));
-            }
-            catch
-            {
-                return View();
-            }
+            DepartmentRepository departmentRepo = new DepartmentRepository();
+            departmentRepo.DeleteDepartment(department.Id);
+            return RedirectToAction(nameof(Index));
         }
-    
-    // GET: Private method to get a list of Employees
 
-    private List<Employee> GetEmployeeCount()
-    {
-        using (SqlConnection conn = Connection)
+        // GET: Private method to get a list of Employees
+
+        private List<Employee> GetEmployeeCount()
         {
-            conn.Open();
+            using (SqlConnection conn = Connection)
+            {
+                conn.Open();
                 using (SqlCommand cmd = conn.CreateCommand())
                 {
                     cmd.CommandText = @"SELECT Id, DepartmentId

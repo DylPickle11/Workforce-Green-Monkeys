@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using GreenMonkeysMVC.Models;
-using GreenMonkeysMVC.Data;
+
 
 namespace GreenMonkeysMVC.Data
 {
@@ -31,13 +31,7 @@ namespace GreenMonkeysMVC.Data
         ///  Returns a list of all employees in the database
         /// </summary>
         public List<Employee> GetAllEmployees()
-        {
-            //  We must "use" the database connection.
-            //  Because a database is a shared resource (other applications may be using it too) we must
-            //  be careful about how we interact with it. Specifically, we Open() connections when we need to
-            //  interact with the database and we Close() them when we're finished.
-            //  In C#, a "using" block ensures we correctly disconnect from a resource even if there is an error.
-            //  For database connections, this means the connection will be properly closed.
+        { 
             using (SqlConnection conn = Connection)
             {
                 // Note, we must Open() the connection, the "using" block   doesn't do that for us.
@@ -47,7 +41,8 @@ namespace GreenMonkeysMVC.Data
                 using (SqlCommand cmd = conn.CreateCommand())
                 {
                     // Here we setup the command with the SQL we want to execute before we execute it.
-                    cmd.CommandText = "SELECT Id, FirstName, LastName, DepartmentId, Email, IsSupervisor, ComputerId FROM Employee";
+                    cmd.CommandText = @"SELECT Id, FirstName, LastName, DepartmentId, Email, 
+                                        IsSupervisor, ComputerId FROM Employee";
 
                     // Execute the SQL in the database and get a "reader" that will give us access to the data.
                     SqlDataReader reader = cmd.ExecuteReader();
@@ -59,56 +54,26 @@ namespace GreenMonkeysMVC.Data
                     while (reader.Read())
                     {
                         // The "ordinal" is the numeric position of the column in the query results.
-                        //  For our query, "Id" has an ordinal value of 0 and "DeptName" is 1.
-                        int idColumnPosition = reader.GetOrdinal("Id");
-
-                        // We user the reader's GetXXX methods to get the value for a particular ordinal.
-                        int idValue = reader.GetInt32(idColumnPosition);
-
-                        int firstNameColumnPosition = reader.GetOrdinal("FirstName");
-                        string firstNameValue = reader.GetString(firstNameColumnPosition);
-
-                        int lastNameColumnPosition = reader.GetOrdinal("LastName");
-                        string lastNameValue = reader.GetString(lastNameColumnPosition);
-
-                        int departmentIdColumnPosition = reader.GetOrdinal("DepartmentId");
-                        int departmentIdValue = reader.GetInt32(departmentIdColumnPosition);
-
-                        int emailColumnPosition = reader.GetOrdinal("Email");
-                        string emailValue = reader.GetString(emailColumnPosition);
-
-                        int isSupervisorColumnPosition = reader.GetOrdinal("IsSupervisor");
-                        bool isSupervisorValue = reader.GetBoolean(isSupervisorColumnPosition);
-
-                        int computerIdColumnPosition = reader.GetOrdinal("ComputerId");
-                        int computerIdValue = reader.GetInt32(computerIdColumnPosition);
-
-
-                        // Now let's create a new department object using the data from the database.
-                        Employee employee = new Employee
-                        {
-                            Id = idValue,
-                            FirstName = firstNameValue,
-                            LastName = lastNameValue,
-                            DepartmentId = departmentIdValue,
-                            Email = emailValue,
-                            IsSupervisor = isSupervisorValue,
-                            ComputerId = computerIdValue
-
-                        };
-
-                        // ...and add that department object to our list.
-                        employees.Add(employee);
-                    }
-
-                    // We should Close() the reader. Unfortunately, a "using" block won't work here.
-                    reader.Close();
-
-                    // Return the list of departments who whomever called this method.
-                    return employees;
+                            employees.Add(new Employee
+                            {
+                                Id = reader.GetInt32(reader.GetOrdinal("Id")),
+                                FirstName = reader.GetString(reader.GetOrdinal("FirstName")),
+                                LastName = reader.GetString(reader.GetOrdinal("LastName")),
+                                DepartmentId = reader.GetInt32(reader.GetOrdinal("DepartmentId")),
+                                Email = reader.GetString(reader.GetOrdinal("Email")),
+                                IsSupervisor = reader.GetBoolean(reader.GetOrdinal("IsSupervisor")),
+                                ComputerId = reader.GetInt32(reader.GetOrdinal("ComputerId")),
+                            });
+                        }
+                        reader.Close();
+                        return employees;
                 }
             }
         }
+
+
+
+
 
     /// <summary>
     ///  Returns a single department with the given id.
@@ -210,7 +175,7 @@ namespace GreenMonkeysMVC.Data
                         int computerIdValue = reader.GetInt32(computerIdColumnPosition);
 
                         DepartmentRepository departmentRepo = new DepartmentRepository();
-                        Department singleDepartment = departmentRepo.GetDepartmentById(departmentIdValue);
+                        Department singleDepartment = departmentRepo.GetDepartmentDetails(departmentIdValue);
 
                         // Now let's create a new department object using the data from the database.
                         Employee employee = new Employee

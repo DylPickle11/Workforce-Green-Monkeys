@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 using GreenMonkeysMVC.Models;
 using System.Data.SqlClient;
 
@@ -28,72 +25,119 @@ namespace GreenMonkeysMVC.Data
             }
         }
 
-        
-
         /// <summary>
         ///  Returns a list of all departments in the database
         /// </summary>
         public List<Department> GetAllDepartments()
         {
-            //  We must "use" the database connection.
-            //  Because a database is a shared resource (other applications may be using it too) we must
-            //  be careful about how we interact with it. Specifically, we Open() connections when we need to
-            //  interact with the database and we Close() them when we're finished.
-            //  In C#, a "using" block ensures we correctly disconnect from a resource even if there is an error.
-            //  For database connections, this means the connection will be properly closed.
             using (SqlConnection conn = Connection)
             {
-                // Note, we must Open() the connection, the "using" block   doesn't do that for us.
                 conn.Open();
-
-                // We must "use" commands too.
                 using (SqlCommand cmd = conn.CreateCommand())
                 {
-                    // Here we setup the command with the SQL we want to execute before we execute it.
-                    cmd.CommandText = "SELECT Id, Name, Budget FROM Department";
+                    cmd.CommandText = @"SELECT d.[Name] AS DepartmentName, COUNT(e.Id) AS EmployeeCount, d.Budget, d.Id 
+                                        FROM Department d LEFT JOIN Employee e ON d.Id = e.DepartmentId
+                                        GROUP BY d.[Name], d.Budget, d. Id";
+                    var reader = cmd.ExecuteReader();
 
-                    // Execute the SQL in the database and get a "reader" that will give us access to the data.
-                    SqlDataReader reader = cmd.ExecuteReader();
+                    var departments = new List<Department>();
 
-                    // A list to hold the departments we retrieve from the database.
-                    List<Department> departments = new List<Department>();
-
-                    // Read() will return true if there's more data to read
                     while (reader.Read())
                     {
-                        // The "ordinal" is the numeric position of the column in the query results.
-                        //  For our query, "Id" has an ordinal value of 0 and "DeptName" is 1.
-                        int idColumnPosition = reader.GetOrdinal("Id");
-
-                        // We user the reader's GetXXX methods to get the value for a particular ordinal.
-                        int idValue = reader.GetInt32(idColumnPosition);
-
-                        int deptNameColumnPosition = reader.GetOrdinal("Name");
-                        string deptNameValue = reader.GetString(deptNameColumnPosition);
-
-                        int deptBudgetColumnPosition = reader.GetOrdinal("Budget");
-                        int deptBudgetValue = reader.GetInt32(deptBudgetColumnPosition);
-
-                        // Now let's create a new department object using the data from the database.
-                        Department department = new Department
+                        departments.Add(new Department
                         {
-                            Id = idValue,
-                            Name = deptNameValue,
-                            Budget = deptBudgetValue
-                        };
-
-                        // ...and add that department object to our list.
-                        departments.Add(department);
+                            Id = reader.GetInt32(reader.GetOrdinal("Id")),
+                            Name = reader.GetString(reader.GetOrdinal("DepartmentName")),
+                            Budget = reader.GetInt32(reader.GetOrdinal("Budget")),
+                            EmployeeCount = reader.GetInt32(reader.GetOrdinal("EmployeeCount"))
+                        });
                     }
-
-                    // We should Close() the reader. Unfortunately, a "using" block won't work here.
                     reader.Close();
-
-                    // Return the list of departments who whomever called this method.
                     return departments;
                 }
             }
         }
+
+        /// <summary>
+        ///  Returns a deparment from the departmentDetails
+        /// </summary>
+        
+        public Department GetDepartmentDetails(int id)
+        {
+            using (SqlConnection conn = Connection)
+            {
+                conn.Open();
+                using (SqlCommand cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"SELECT d.Id AS DepartmentId, d.[Name] AS Department, d.Budget AS Budget,
+                                        e.Id AS EmployeeId, 
+                                        e.FirstName + ' ' + e.LastName AS Employee FROM Department d LEFT JOIN Employee e
+                                        ON d.Id = e.DepartmentId
+                                        WHERE D.Id = @id";
+
+                    cmd.Parameters.Add(new SqlParameter("@id", id));
+
+                    var reader = cmd.ExecuteReader();
+                    Department department = null;
+                    var employees = new List<Employee>();
+
+                    while (reader.Read())
+                    {
+                        if (department == null)
+                        {
+                            department = new Department
+                            {
+                                Id = reader.GetInt32(reader.GetOrdinal("DepartmentId")),
+                                Name = reader.GetString(reader.GetOrdinal("Department")),
+                                Budget = reader.GetInt32(reader.GetOrdinal("Budget")),
+                                Employees = employees
+                            };
+                        }
+
+                        if (!reader.IsDBNull(reader.GetOrdinal("EmployeeId")))
+                        {
+                            //employees.Add(
+                            var emp = new Employee
+                            {
+                                Id = reader.GetInt32(reader.GetOrdinal("EmployeeId")),
+                                FirstName = reader.GetString(reader.GetOrdinal("Employee")),
+                            };
+                            department.Employees.Add(emp);
+                        }
+                    }
+                    reader.Close();
+                    return department;
+                }
+            }
+        }
+        
+        ///<summary>
+         /// Add a new department to the database
+         ///  NOTE: This method sends data to the database,
+         ///  it does not get anything from the database, so there is nothing to return.
+        /// </summary>
+        public void AddDepartment(Department department)
+        {
+            {
+                using (SqlConnection conn = Connection)
+                {
+                    conn.Open();
+                    using (SqlCommand cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = @"INSERT INTO Department (Name, Budget)
+                                            VALUES (@Name, @Budget)";
+
+                        cmd.Parameters.Add(new SqlParameter("@Name", department.Name));
+                        cmd.Parameters.Add(new SqlParameter("@Budget", department.Budget));
+
+                        cmd.ExecuteNonQuery();
+                    }
+
+                }
+
+            }
+        }
+
 
         /// <summary>
         ///  Returns a single department with the given id.
@@ -123,37 +167,9 @@ namespace GreenMonkeysMVC.Data
                     }
 
                     reader.Close();
-
                     return department;
                 }
             }
-        }
-
-        /*
-
-        /// <summary>
-        ///  Add a new department to the database
-        ///   NOTE: This method sends data to the database,
-        ///   it does not get anything from the database, so there is nothing to return.
-        /// </summary>
-        public void AddDepartment(Department department)
-        {
-            using (SqlConnection conn = Connection)
-            {
-                conn.Open();
-                using (SqlCommand cmd = conn.CreateCommand())
-                {
-                    // These SQL parameters are annoying. Why can't we use string interpolation?
-                    // ... sql injection attacks!!!
-                    cmd.CommandText = "INSERT INTO Department (DeptName) OUTPUT INSERTED.Id Values (@deptName)";
-                    cmd.Parameters.Add(new SqlParameter("@deptName", department.DeptName));
-                    int id = (int)cmd.ExecuteScalar();
-
-                    department.Id = id;
-                }
-            }
-
-            // when this method is finished we can look in the database and see the new department.
         }
 
         /// <summary>
@@ -167,16 +183,16 @@ namespace GreenMonkeysMVC.Data
                 using (SqlCommand cmd = conn.CreateCommand())
                 {
                     cmd.CommandText = @"UPDATE Department
-                                     SET DeptName = @deptName
+                                     SET Name = @deptName, Budget = @Budget
                                      WHERE Id = @id";
-                    cmd.Parameters.Add(new SqlParameter("@deptName", department.DeptName));
+                    cmd.Parameters.Add(new SqlParameter("@deptName", department.Name));
+                    cmd.Parameters.Add(new SqlParameter("@Budget", department.Budget));
                     cmd.Parameters.Add(new SqlParameter("@id", id));
-
                     cmd.ExecuteNonQuery();
                 }
             }
         }
-
+ 
         /// <summary>
         ///  Delete the department with the given id
         /// </summary>
@@ -184,6 +200,7 @@ namespace GreenMonkeysMVC.Data
         {
             using (SqlConnection conn = Connection)
             {
+                DeleteEmployee(id);
                 conn.Open();
                 using (SqlCommand cmd = conn.CreateCommand())
                 {
@@ -194,7 +211,19 @@ namespace GreenMonkeysMVC.Data
             }
         }
 
-    */
+        private void DeleteEmployee(int id)
+        {
+            using (SqlConnection conn = Connection)
+            {
+                conn.Open();
+                using (SqlCommand cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "DELETE FROM Employee WHERE DepartmentId = @id";
+                    cmd.Parameters.Add(new SqlParameter("@id", id));
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
 
     }
 }

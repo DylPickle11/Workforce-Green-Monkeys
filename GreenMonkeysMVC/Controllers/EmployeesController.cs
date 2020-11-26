@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Data.SqlClient;
 using GreenMonkeysMVC.Data;
@@ -27,10 +25,10 @@ namespace GreenMonkeysMVC.Controllers
         // GET: Employees
         public ActionResult Index()
         {
-         
+
             EmployeeRepository employeeRepo = new EmployeeRepository();
             List<Employee> allEmployeesWithDepartments = employeeRepo.GetAllEmployeesWithDepartment();
-        
+
             return View(allEmployeesWithDepartments);
         }
 
@@ -40,7 +38,7 @@ namespace GreenMonkeysMVC.Controllers
             EmployeeRepository employeeRepo = new EmployeeRepository();
             var employee = employeeRepo.GetEmployeeById(id);
             DepartmentRepository departmentRepo = new DepartmentRepository();
-            var department = departmentRepo.GetDepartmentById(employee.DepartmentId);
+            var department = departmentRepo.GetDepartmentDetails(employee.DepartmentId);
             ComputerRepository computerRepo = new ComputerRepository();
             var computer = computerRepo.GetComputerById(employee.ComputerId);
             TrainingProgramRepository trainingProgramRepo = new TrainingProgramRepository();
@@ -103,7 +101,7 @@ namespace GreenMonkeysMVC.Controllers
                         cmd.Parameters.Add(new SqlParameter("@firstName", employee.FirstName));
                         cmd.Parameters.Add(new SqlParameter("@lastName", employee.LastName));
                         cmd.Parameters.Add(new SqlParameter("@departmentId", employee.DepartmentId));
-                        cmd.Parameters.Add(new SqlParameter("@email","example@gmail.com"));
+                        cmd.Parameters.Add(new SqlParameter("@email", "example@gmail.com"));
                         cmd.Parameters.Add(new SqlParameter("@isSupervisor", employee.IsSupervisor));
                         cmd.Parameters.Add(new SqlParameter("@computerId", employee.ComputerId));
 
@@ -139,13 +137,13 @@ namespace GreenMonkeysMVC.Controllers
             EmployeeRepository employeeRepo = new EmployeeRepository();
             var employee = employeeRepo.GetEmployeeById(id);
 
-             var viewModel = new EmployeeCreateModel()
-             {
-                  Employee = employee,
-                  Departments = departments,
-                  Computers = computers
-             };
-             return View(viewModel);
+            var viewModel = new EmployeeCreateModel()
+            {
+                Employee = employee,
+                Departments = departments,
+                Computers = computers
+            };
+            return View(viewModel);
         }
 
 
@@ -166,27 +164,84 @@ namespace GreenMonkeysMVC.Controllers
             }
         }
 
-        // GET: Employees/Delete/5
+        // GET: Employee/Delete/5
         public ActionResult Delete(int id)
         {
-            return View();
+            using (SqlConnection conn = Connection)
+            {
+                conn.Open();
+                using (SqlCommand cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"SELECT * FROM Employee WHERE Id = @id";
+
+                    cmd.Parameters.Add(new SqlParameter("@id", id));
+
+                    var reader = cmd.ExecuteReader();
+
+                    if (reader.Read())
+                    {
+                        var employee = new Employee()
+                        {
+                            FirstName = reader.GetString(reader.GetOrdinal("FirstName")),
+                            LastName = reader.GetString(reader.GetOrdinal("LastName")),
+                            DepartmentId = reader.GetInt32(reader.GetOrdinal("DepartmentId")),
+                            Email = reader.GetString(reader.GetOrdinal("Email")),
+                            IsSupervisor = reader.GetBoolean(reader.GetOrdinal("IsSupervisor")),
+                            ComputerId = reader.GetInt32(reader.GetOrdinal("ComputerId"))
+                        };
+                        reader.Close();
+                        return View(employee);
+                    }
+                    return NotFound();
+                }
+            }
         }
 
-        // POST: Employees/Delete/5
-        [HttpPost]
+        // POST: Employee/Delete/5
+        [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        public ActionResult Delete(int id, IFormCollection collection)
+        public ActionResult DeleteDelete(int id)
         {
+            DeleteEmployeeTraining(id);
             try
             {
-                // TODO: Add delete logic here
+                using (SqlConnection conn = Connection)
+                {
+                    conn.Open();
+                    using (SqlCommand cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = @"DELETE FROM Employee WHERE Id = @id";
 
-                return RedirectToAction(nameof(Index));
+                        cmd.Parameters.Add(new SqlParameter("@id", id));
+
+                        cmd.ExecuteNonQuery();
+
+                        return RedirectToAction(nameof(Index));
+                    }
+                }
             }
-            catch
+            catch (Exception ex)
             {
                 return View();
             }
         }
+
+        private void DeleteEmployeeTraining(int id)
+        {
+            using (SqlConnection conn = Connection)
+            {
+                conn.Open();
+                using (SqlCommand cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"DELETE FROM EmployeeTraining WHERE TrainingProgramId = @id";
+
+                    cmd.Parameters.Add(new SqlParameter("@id", id));
+
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+
     }
 }
+
