@@ -1,7 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using GreenMonkeysMVC.Models;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -62,46 +60,6 @@ namespace GreenMonkeysMVC.Controllers
             }
         }
 
-
-
-
-
-
-
-
-        //// GET: Departments
-        //public ActionResult Index()
-        //{
-        //    using (SqlConnection conn = Connection)
-        //    {
-        //        conn.Open();
-        //        using (SqlCommand cmd = conn.CreateCommand())
-        //        {
-        //            cmd.CommandText = @"SELECT d.[Name] AS DepartmentName, COUNT(e.Id) AS EmployeeCount, d.Budget, d.Id 
-        //                                FROM Department d LEFT JOIN Employee e ON d.Id = e.DepartmentId
-        //                                GROUP BY d.[Name], d.Budget, d. Id";
-        //            var reader = cmd.ExecuteReader();
-
-        //            var departments = new List<Department>();
-
-        //            while (reader.Read())
-        //            {
-        //                departments.Add(new Department
-        //                {
-        //                    Id = reader.GetInt32(reader.GetOrdinal("Id")),
-        //                    Name = reader.GetString(reader.GetOrdinal("DepartmentName")),
-        //                    Budget = reader.GetInt32(reader.GetOrdinal("Budget")),
-        //                    EmployeeCount = reader.GetInt32(reader.GetOrdinal("EmployeeCount"))
-        //                });
-        //            }
-        //            reader.Close();
-        //            return View(departments);
-        //        }
-        //    }
-        //}
-
-
-
         // GET: Departments/Edit
         public ActionResult Edit(int id)
         {
@@ -147,7 +105,6 @@ namespace GreenMonkeysMVC.Controllers
         }
 
         // GET: Private method to get a list of Employees
-
         private List<Employee> GetEmployeeCount()
         {
             using (SqlConnection conn = Connection)
